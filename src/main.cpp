@@ -180,6 +180,7 @@ int ledFinalBrightness = 0;
 float ledBrightness_vel = 0.0f, ledBrightness_pos = 0.0f;
 unsigned long lastLoop = 0, deltaTime;
 
+double envelopeFollowerGain = 1.0;
 void ProcessAudio()
 {
   // Wait for samples to be read
@@ -199,23 +200,51 @@ void ProcessAudio()
     samplesRead = 0;
 
     float averageLoudness01 = InvLerp(0.0f, 32767.0f, (float)abs(average));
-    Serial.print("averageLoudness01:");
-    Serial.print(averageLoudness01);
-    Serial.println();
+     Serial.print("averageLoudness01:");
+     Serial.print(averageLoudness01);
+     Serial.println();
 
     UpdateDampedSpringMotion(&ledBrightness_pos, &ledBrightness_vel, averageLoudness01, brightnessSmoothing);
-    ledFinalBrightness = (int)(ledBrightness_pos * 255.0f);
 
-    Serial.print("ledBrightness out:");
-    Serial.print(ledBrightness_pos);
-    Serial.println();
+   ledFinalBrightness = (int)(ledBrightness_pos * 255.0f);
 
-    Serial.print("deltaTime:");
-    Serial.print(deltaTime);
-    Serial.println();
 
-    Serial.print("samplesRead:");
-    Serial.print(samplesRead);
+    // Serial.print("ledBrightness out:");
+    // Serial.print(ledBrightness_pos);
+    // Serial.println();
+
+    // Serial.print("deltaTime:");
+    // Serial.print(deltaTime);
+    // Serial.println();
+
+    // Serial.print("samplesRead:");
+    // Serial.print(samplesRead);
+    // Serial.println();
+
+    int modifiedRaw = analogRead(POTI_INPUT_PIN);
+    brightnessSmoothingAngularFreq = mapd(modifiedRaw, 0.0, 1023.0, 1.0, 96.0);
+
+
+    BrightnesSmoothingCalculateParams();
+    //double brightnessLimited = mapd(ledFinalBrightness, 0.0, 255.0, 0.0, 200.0);
+
+    const double attack = 0.1;
+    const double release = 0.08;
+    const double thresshold = mapd(modifiedRaw, 0.0, 1023.0, 0.0, 0.1);
+
+    if(averageLoudness01 > thresshold){
+      envelopeFollowerGain += attack;
+      Serial.println("above");
+    } else {
+      envelopeFollowerGain -= release;
+      Serial.println("bellow");
+    }
+
+    envelopeFollowerGain = max(0.0, min(1.0, envelopeFollowerGain));
+    
+    ledFinalBrightness = (int)(envelopeFollowerGain * 255.0f);
+    Serial.print("envFollowGain:");
+    Serial.print(envelopeFollowerGain);
     Serial.println();
   }
 }
@@ -334,17 +363,14 @@ void loop()
   ProcessAudio();
   // RunWebServer();
 
-  int modifiedRaw = analogRead(POTI_INPUT_PIN);
-  double modifier = mapd(modifiedRaw, 0.0, 1023.0, 0.0, 1.0);
-  double brightnessLimited = mapd(ledFinalBrightness, 0.0, 255.0, 0.0, 200.0);
+  //int out = (int)(brightnessLimited * modifier);
 
-  int out = (int)(brightnessLimited * modifier);
+  // Serial.print("sound: ");
+  // Serial.print(brightnessLimited);
+  // Serial.print(", out: ");
+  // Serial.print(out);
+  // Serial.println();
 
-  Serial.print("sound: ");
-  Serial.print(brightnessLimited);
-  Serial.print(", out: ");
-  Serial.print(out);
-  Serial.println();
-
-  analogWrite(BRIGHTNESS_OUT_PIN, out);
+  ledFinalBrightness = min(ledFinalBrightness, 200);
+  analogWrite(BRIGHTNESS_OUT_PIN, ledFinalBrightness);
 }
