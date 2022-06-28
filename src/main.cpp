@@ -16,7 +16,18 @@
 // TODO-Optional:
 // -Check compresson like envelope folower
 
-static const int BRIGHTNESS_OUT_PIN = A0;
+#define BRIGHTNESS_OUT_PIN A0
+#define POTI_INPUT_PIN A1
+
+/*
+char ssid[] = "yourNetwork";  // your network SSID (name)
+char pass[] = "yourPassword"; // your network password (use for WPA, or use as key for WEP)
+int keyIndex = 0;             // your network key Index number (needed only for WEP)
+int led = LED_BUILTIN;
+int status = WL_IDLE_STATUS;
+WiFiServer server(80);
+*/
+
 // default number of output channels
 static const char channels = 1;
 // default PCM output frequency
@@ -27,6 +38,10 @@ short sampleBuffer[512];
 
 // Number of audio samples read
 volatile int samplesRead;
+
+float brightnessSmoothingAngularFreq = 64.0f;
+
+tDampedSpringMotionParams brightnessSmoothing;
 
 double mapd(double x, double in_min, double in_max, double out_min, double out_max)
 {
@@ -41,8 +56,6 @@ float InvLerp(float a, float b, float v)
 // ================================================================
 // Brightness Smoothing Context
 // ================================================================
-float brightnessSmoothingAngularFreq = 64.0f;
-tDampedSpringMotionParams brightnessSmoothing;
 
 void BrightnesSmoothingCalculateParams()
 {
@@ -56,14 +69,8 @@ void BrightnesSmoothingCalculateParams()
 // ================================================================
 // Running HTTP Server
 // ================================================================
-char ssid[] = "yourNetwork";  // your network SSID (name)
-char pass[] = "yourPassword"; // your network password (use for WPA, or use as key for WEP)
-int keyIndex = 0;             // your network key Index number (needed only for WEP)
 
-int led = LED_BUILTIN;
-int status = WL_IDLE_STATUS;
-WiFiServer server(80);
-
+/*
 void RunWebServer()
 {
   // compare the previous status to the current status
@@ -123,7 +130,7 @@ void RunWebServer()
             // the content of the HTTP response follows the header:
             client.print("AngFreq: <button class='red' type='submit' onmousedown='location.href=\"/AF_PLUS\"'>+</button>");
             client.print(brightnessSmoothingAngularFreq);
-            client.print("AngFreq: <button class='green' type='submit' onmousedown='location.href=\"/AF_MINUS\"'>-</button>");
+            client.print(" <button class='green' type='submit' onmousedown='location.href=\"/AF_MINUS\"'>-</button>");
             client.print("<br>");
 
             int randomReading = analogRead(A1);
@@ -163,6 +170,7 @@ void RunWebServer()
     Serial.println("client disconnected");
   }
 }
+*/
 
 // ================================================================
 // Processing Audio globals
@@ -228,6 +236,7 @@ void onPDMdata()
   samplesRead = bytesAvailable / 2;
 }
 
+/*
 void printWiFiStatus()
 {
   // print the SSID of the network you're attached to:
@@ -244,37 +253,8 @@ void printWiFiStatus()
   Serial.println(ip);
 }
 
-// ================================================================
-// Setup
-// ================================================================
-void setup()
+void SetupWifi()
 {
-  Serial.begin(9600);
-
-  pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(BRIGHTNESS_OUT_PIN, OUTPUT);
-
-  // while (!Serial);
-  //  Configure the data receive callback
-  PDM.onReceive(onPDMdata);
-
-  // Optionally set the gain
-  // Defaults to 20 on the BLE Sense and -10 on the Portenta Vision Shields
-  // PDM.setGain(30);
-
-  // Initialize PDM with:
-  // - one channel (mono mode)
-  // - a 16 kHz sample rate for the Arduino Nano 33 BLE Sense
-  // - a 32 kHz or 64 kHz sample rate for the Arduino Portenta Vision Shields
-  if (!PDM.begin(channels, frequency))
-  {
-    Serial.println("Failed to start PDM!");
-    while (1)
-      ;
-  }
-
-  BrightnesSmoothingCalculateParams();
-
   // ================================================================
   // Web Server
   // ================================================================
@@ -314,12 +294,57 @@ void setup()
   printWiFiStatus();
 }
 
+*/
+
+// ================================================================
+// Setup
+// ================================================================
+void setup()
+{
+  Serial.begin(9600);
+
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(BRIGHTNESS_OUT_PIN, OUTPUT);
+
+  // while (!Serial);
+  //  Configure the data receive callback
+  PDM.onReceive(onPDMdata);
+
+  // Optionally set the gain
+  // Defaults to 20 on the BLE Sense and -10 on the Portenta Vision Shields
+  // PDM.setGain(30);
+
+  // Initialize PDM with:
+  // - one channel (mono mode)
+  // - a 16 kHz sample rate for the Arduino Nano 33 BLE Sense
+  // - a 32 kHz or 64 kHz sample rate for the Arduino Portenta Vision Shields
+  if (!PDM.begin(channels, frequency))
+  {
+    Serial.println("Failed to start PDM!");
+    while (1)
+      ;
+  }
+
+  BrightnesSmoothingCalculateParams();
+}
+
 void loop()
 {
 
-  // ProcessAudio();
-  RunWebServer();
+  ProcessAudio();
+  // RunWebServer();
 
-  analogWrite(LED_BUILTIN, ledFinalBrightness);
-  // analogWrite(BRIGHTNESS_OUT_PIN, 255);
+  int modifiedRaw = analogRead(POTI_INPUT_PIN);
+  double modifier = mapd(modifiedRaw, 0.0, 1023.0, 0.0, 1.0);
+  double brightnessLimited = mapd(ledFinalBrightness, 0.0, 255.0, 0.0, 200.0);
+
+  int out = (int)(brightnessLimited * modifier);
+
+  Serial.print("sound: ");
+  Serial.print(brightnessLimited);
+  Serial.print(", out: ");
+  Serial.print(out);
+  Serial.println();
+
+  analogWrite(BRIGHTNESS_OUT_PIN, out);
 }
