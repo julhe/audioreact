@@ -206,15 +206,15 @@ void RunWebServer()
             client.print("<br>");
 
 
-            client.print("Potention Disabled: <button class='blue' type='submit' onmousedown='location.href=\"/P_TO_NONE\"'>+</button>");
+            client.print("Pot. Disabled: <button class='blue' type='submit' onmousedown='location.href=\"/P_TO_NONE\"'>+</button>");
             client.print(config.mode == PotiMode::None);
             client.print("<br>");
 
-            client.print("Potention To Bias: <button class='blue' type='submit' onmousedown='location.href=\"/P_TO_BIAS\"'>+</button>");
+            client.print("Pot. To Bias: <button class='blue' type='submit' onmousedown='location.href=\"/P_TO_BIAS\"'>+</button>");
             client.print(config.mode == PotiMode::LBias);
             client.print("<br>");
 
-            client.print("Potention To Scale: <button class='blue' type='submit' onmousedown='location.href=\"/P_TO_SCALE\"'>+</button>");
+            client.print("Pot. To Scale: <button class='blue' type='submit' onmousedown='location.href=\"/P_TO_SCALE\"'>+</button>");
             client.print(config.mode == PotiMode::LScale);
             client.print("<br>");
 
